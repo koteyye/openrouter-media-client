@@ -37,7 +37,13 @@ export async function generateVideo(
   if (params.size) body.size = params.size;
   if (params.duration !== undefined && params.duration > 0) body.duration = params.duration;
   if (params.seed !== undefined) body.seed = params.seed;
-  if (params.generate_audio !== undefined) body.generate_audio = params.generate_audio;
+  if (params.generate_audio !== undefined) {
+    body.generate_audio = params.generate_audio;
+    body.audio = params.generate_audio;
+  }
+  if (params.frame_images) body.frame_images = params.frame_images;
+  if (params.input_references) body.input_references = params.input_references;
+  if (params.audio_ref) body.audio_ref = params.audio_ref;
 
   const res = await fetch(`${BASE_URL}/videos`, {
     method: 'POST',

@@ -129,6 +129,15 @@ export type LangKey =
   | 'dashboard.imageToImage'
   | 'dashboard.textToVideo'
   | 'dashboard.imageToVideo'
+  | 'dashboard.endFrameOptional'
+  | 'dashboard.uploadEndFrame'
+  | 'dashboard.refImageOptional'
+  | 'dashboard.uploadRefImage'
+  | 'dashboard.audioRefOptional'
+  | 'dashboard.uploadAudioRef'
+  | 'dashboard.loadingAudio'
+  | 'dashboard.audioUploadedSuccessfully'
+  | 'dashboard.audioUploadFailed'
 
   // Pricing SKU descriptions
   | 'pricing.perReferenceFrame'
@@ -289,6 +298,15 @@ export const translations: Record<LangKey, Record<Lang, string>> = {
   'dashboard.imageToImage':        { ru: 'Изображение в изображение',                      en: 'Image-to-Image' },
   'dashboard.textToVideo':         { ru: 'Текст в видео',                                  en: 'Text-to-Video' },
   'dashboard.imageToVideo':        { ru: 'Изображение в видео',                            en: 'Image-to-Video' },
+  'dashboard.endFrameOptional':    { ru: 'Конечный кадр (опционально)',                    en: 'End Frame (optional)' },
+  'dashboard.uploadEndFrame':      { ru: 'Загрузить конечный кадр',                        en: 'Upload end frame' },
+  'dashboard.refImageOptional':    { ru: 'Референсное изображение (опционально)',          en: 'Reference Image (optional)' },
+  'dashboard.uploadRefImage':      { ru: 'Загрузить референсное изображение',              en: 'Upload reference image' },
+  'dashboard.audioRefOptional':    { ru: 'Референсный аудиоклип (опционально)',             en: 'Reference Audio (optional)' },
+  'dashboard.uploadAudioRef':      { ru: 'Загрузить аудиоклип',                            en: 'Upload audio clip' },
+  'dashboard.loadingAudio':        { ru: 'Загрузка аудиофайла...',                         en: 'Loading audio file...' },
+  'dashboard.audioUploadedSuccessfully': { ru: 'Аудио загружено успешно',                  en: 'Audio uploaded successfully' },
+  'dashboard.audioUploadFailed':   { ru: 'Не удалось загрузить аудио',                     en: 'Failed to upload audio' },
 
   // Pricing SKU descriptions
   'pricing.perReferenceFrame':        { ru: 'за референс-кадр',                  en: 'per reference frame' },

@@ -22,6 +22,8 @@ export interface ElectronAPI {
   openFileDialog: () => Promise<IpcResult<string | null>>;
   saveFileDialog: (defaultName: string) => Promise<IpcResult<string | null>>;
   openDirectoryDialog: () => Promise<IpcResult<string | null>>;
+  dialogOpenAudioFile: () => Promise<IpcResult<string | null>>;
+  audioUpload: (filePath: string) => Promise<IpcResult<UploadedFrameImage>>;
   openLocalFile: (filePath: string) => Promise<IpcResult<void>>;
   showLocalFileInFolder: (filePath: string) => Promise<IpcResult<void>>;
   testConnection: (apiKey: string) => Promise<IpcResult<boolean>>;

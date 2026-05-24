@@ -40,9 +40,16 @@ export interface OpenRouterModel {
   allowed_passthrough_parameters?: string[];
 }
 
+export interface OpenRouterInputReference {
+  type: 'image_url';
+  image_url: { url: string };
+}
+
 export interface VideoGenerateParams {
   prompt: string;
   frame_images?: OpenRouterFrameImage[];
+  input_references?: OpenRouterInputReference[];
+  audio_ref?: string;
   resolution?: string;
   aspect_ratio?: string;
   size?: string;
@@ -146,8 +153,10 @@ export interface UploadedFrameImage {
 export interface I2VGenerateInput {
   model: string;
   prompt: string;
-  firstFramePath: string;
-  lastFramePath?: string;
+  firstFrame: UploadedFrameImage;
+  lastFrame?: UploadedFrameImage | null;
+  refImage?: UploadedFrameImage | null;
+  audioRef?: UploadedFrameImage | null;
   resolution?: string;
   aspectRatio?: string;
   duration?: number;
@@ -178,6 +187,8 @@ export type IpcChannelMap = {
   'dialog:open-file': { args: []; return: IpcResult<string | null> };
   'dialog:save-file': { args: [defaultName: string]; return: IpcResult<string | null> };
   'dialog:open-directory': { args: []; return: IpcResult<string | null> };
+  'dialog:open-audio-file': { args: []; return: IpcResult<string | null> };
+  'audio:upload': { args: [filePath: string]; return: IpcResult<UploadedFrameImage> };
   'file:open': { args: [filePath: string]; return: IpcResult<void> };
   'file:show-in-folder': { args: [filePath: string]; return: IpcResult<void> };
   'config:test-connection': { args: [apiKey: string]; return: IpcResult<boolean> };

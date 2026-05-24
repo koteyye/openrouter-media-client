@@ -15,6 +15,8 @@ import {
 } from './openrouter';
 import { uploadFrameImage } from './services/i2v-uploader';
 import * as historyStore from './services/history-store';
+import { uploadToTmpfiles } from './services/tmpfiles';
+import { verifyPublicImageUrl } from './services/url-verifier';
 import type { AppConfig, IpcResult, MediaType, OpenRouterFrameImage, GenerationHistoryItem } from '../shared/ipc-types';
 
 export const configStore = new Store<AppConfig>({
@@ -90,6 +92,48 @@ function resolveSavedFilePath(filePath: string): string {
   }
 
   return safePath;
+}
+
+async function uploadAudioFile(filePath: string): Promise<UploadedFrameImage> {
+  const fileName = path.basename(filePath);
+  if (!fs.existsSync(filePath)) {
+    throw new Error('File does not exist');
+  }
+  const stat = fs.statSync(filePath);
+  const MAX_AUDIO_SIZE = 30 * 1024 * 1024; // 30 MB
+  if (stat.size > MAX_AUDIO_SIZE) {
+    throw new Error(`File too large (${(stat.size / 1024 / 1024).toFixed(1)} MB). Maximum: 30 MB`);
+  }
+  const ext = path.extname(fileName).toLowerCase();
+  const allowedAudioExts = ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'];
+  if (!allowedAudioExts.includes(ext)) {
+    throw new Error(`Unsupported audio format: ${ext}`);
+  }
+
+  const mimeMap: Record<string, string> = {
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/x-m4a',
+    '.ogg': 'audio/ogg',
+    '.flac': 'audio/flac',
+  };
+
+  console.log("[audio-uploader] Uploading audio to Piximg...", filePath);
+  const url = await uploadToTmpfiles(filePath); // Всегда без ImgBB ключа, чтобы грузить на Piximg
+
+  console.log("[audio-uploader] Verifying URL...", url);
+  await verifyPublicImageUrl(url);
+
+  return {
+    frameType: 'first_frame', // Совместимость с типом
+    provider: 'tmpfiles',
+    url,
+    originalFileName: fileName,
+    mimeType: mimeMap[ext] || 'audio/mpeg',
+    sizeBytes: stat.size,
+    uploadedAt: new Date().toISOString(),
+  };
 }
 
 export function registerIpcHandlers(): void {
@@ -244,6 +288,8 @@ export function registerIpcHandlers(): void {
 
     const firstFrame = input.firstFrame;
     const lastFrame = input.lastFrame;
+    const refImage = input.refImage;
+    const audioRef = input.audioRef;
 
     const frameImages: OpenRouterFrameImage[] = [
       { type: 'image_url', image_url: { url: firstFrame.url }, frame_type: 'first_frame' },
@@ -257,10 +303,24 @@ export function registerIpcHandlers(): void {
       prompt: safePrompt,
       frame_images: frameImages,
     };
+
+    if (refImage) {
+      body.input_references = [
+        { type: 'image_url', image_url: { url: refImage.url } }
+      ];
+    }
+
+    if (audioRef) {
+      body.audio_ref = audioRef.url;
+    }
+
     if (input.resolution) body.resolution = input.resolution;
     if (input.aspectRatio) body.aspect_ratio = input.aspectRatio;
     if (input.duration !== undefined && input.duration > 0) body.duration = input.duration;
-    if (input.generateAudio !== undefined) body.generate_audio = input.generateAudio;
+    if (input.generateAudio !== undefined) {
+      body.generate_audio = input.generateAudio;
+      body.audio = input.generateAudio;
+    }
     if (input.seed !== undefined) body.seed = input.seed;
 
     const res = await fetch('https://openrouter.ai/api/v1/videos', {
@@ -392,6 +452,20 @@ export function registerIpcHandlers(): void {
     });
     return { success: true, data: result.canceled ? null : result.filePaths[0] };
   });
+
+  ipcMain.handle('dialog:open-audio-file', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return { success: true, data: null };
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'] }],
+    });
+    return { success: true, data: result.canceled ? null : result.filePaths[0] };
+  });
+
+  ipcMain.handle('audio:upload', async (_e, filePath: string) => wrapAsync(async () => {
+    return await uploadAudioFile(filePath);
+  }));
 
   ipcMain.handle('file:open', async (_e, filePath: string) => wrapAsync(async () => {
     const safePath = resolveSavedFilePath(filePath);

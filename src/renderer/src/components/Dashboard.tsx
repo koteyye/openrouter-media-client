@@ -174,6 +174,24 @@ function Dashboard(): JSX.Element {
   const [firstFrameLoading, setFirstFrameLoading] = useState(false);
   const [firstFrameError, setFirstFrameError] = useState<string | null>(null);
 
+  // EndFrame uploads (last frame)
+  const [lastFramePath, setLastFramePath] = useState<string | null>(null);
+  const [lastFrame, setLastFrame] = useState<UploadedFrameImage | null>(null);
+  const [lastFrameLoading, setLastFrameLoading] = useState(false);
+  const [lastFrameError, setLastFrameError] = useState<string | null>(null);
+
+  // Reference Image uploads (Refimage)
+  const [refImagePath, setRefImagePath] = useState<string | null>(null);
+  const [refImage, setRefImage] = useState<UploadedFrameImage | null>(null);
+  const [refImageLoading, setRefImageLoading] = useState(false);
+  const [refImageError, setRefImageError] = useState<string | null>(null);
+
+  // Reference Audio uploads (Audioref)
+  const [audioRefPath, setAudioRefPath] = useState<string | null>(null);
+  const [audioRef, setAudioRef] = useState<UploadedFrameImage | null>(null);
+  const [audioRefLoading, setAudioRefLoading] = useState(false);
+  const [audioRefError, setAudioRefError] = useState<string | null>(null);
+
   // Models state
   const [models, setModels] = useState<OpenRouterModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -195,8 +213,48 @@ function Dashboard(): JSX.Element {
   const isConfigured = !!apiKey && !!localFolder;
   const isVideoMode = activeTab === 'image-to-video' || activeTab === 'text-to-video';
 
-  const resolutions = selectedModelData?.supported_resolutions ?? [];
-  const aspectRatios = selectedModelData?.supported_aspect_ratios ?? [];
+  // Dynamic parameter support detection
+  const supportsEndFrame = useMemo(() => {
+    return activeTab === 'image-to-video' && !!selectedModelData?.supported_frame_images?.includes('last_frame');
+  }, [selectedModelData, activeTab]);
+
+  const supportsRefImage = useMemo(() => {
+    return isVideoMode && !!selectedModelData?.allowed_passthrough_parameters?.some(
+      p => p === 'input_references' || p === 'ref_image' || p === 'ref_images'
+    );
+  }, [selectedModelData, isVideoMode]);
+
+  const supportsAudioRef = useMemo(() => {
+    return isVideoMode && !!selectedModelData?.allowed_passthrough_parameters?.some(
+      p => p.includes('audio')
+    );
+  }, [selectedModelData, isVideoMode]);
+
+  const isImageTab = activeTab === 'text-to-image' || activeTab === 'image-to-image';
+
+  const resolutions = useMemo(() => {
+    if (isImageTab) {
+      if (selectedModelData?.supported_sizes && selectedModelData.supported_sizes.length > 0) {
+        return selectedModelData.supported_sizes;
+      }
+      if (selectedModelData?.supported_resolutions && selectedModelData.supported_resolutions.length > 0) {
+        return selectedModelData.supported_resolutions;
+      }
+      return ['1K', '2K', '4K'];
+    }
+    return selectedModelData?.supported_resolutions ?? [];
+  }, [selectedModelData, isImageTab]);
+
+  const aspectRatios = useMemo(() => {
+    if (isImageTab) {
+      if (selectedModelData?.supported_aspect_ratios && selectedModelData.supported_aspect_ratios.length > 0) {
+        return selectedModelData.supported_aspect_ratios;
+      }
+      return ['1:1', '16:9', '9:16', '3:2', '2:3', '4:3', '3:4', '21:9'];
+    }
+    return selectedModelData?.supported_aspect_ratios ?? [];
+  }, [selectedModelData, isImageTab]);
+
   const durations = selectedModelData?.supported_durations ?? [];
 
   const pricingSkusEntries = selectedModelData?.pricing_skus ? Object.entries(selectedModelData.pricing_skus) : [];
@@ -333,20 +391,29 @@ function Dashboard(): JSX.Element {
     }
     
     // Автоматически предустанавливаем оптимальные значения по умолчанию при выборе модели
-    const defaultRes = m.supported_resolutions && m.supported_resolutions.length > 0
-      ? (m.supported_resolutions.includes('720p') ? '720p' : m.supported_resolutions[0])
-      : '';
+    const isImageMode = activeTab === 'text-to-image' || activeTab === 'image-to-image';
+
+    const defaultRes = isImageMode 
+      ? (m.supported_sizes && m.supported_sizes.length > 0 ? m.supported_sizes[0] : '1K')
+      : (m.supported_resolutions && m.supported_resolutions.length > 0
+        ? (m.supported_resolutions.includes('720p') ? '720p' : m.supported_resolutions[0])
+        : '');
     setResolution(defaultRes);
     
-    const defaultAspect = m.supported_aspect_ratios && m.supported_aspect_ratios.length > 0
-      ? (m.supported_aspect_ratios.includes('16:9') ? '16:9' : m.supported_aspect_ratios[0])
-      : '';
+    const defaultAspect = isImageMode
+      ? (m.supported_aspect_ratios && m.supported_aspect_ratios.length > 0 ? m.supported_aspect_ratios[0] : '1:1')
+      : (m.supported_aspect_ratios && m.supported_aspect_ratios.length > 0
+        ? (m.supported_aspect_ratios.includes('16:9') ? '16:9' : m.supported_aspect_ratios[0])
+        : '');
     setAspectRatio(defaultAspect);
     
     const defaultDuration = m.supported_durations && m.supported_durations.length > 0
       ? (m.supported_durations.includes(5) ? '5' : String(m.supported_durations[0]))
       : '';
     setDuration(defaultDuration);
+
+    // Автоматически синхронизируем состояние генерации аудио
+    setGenerateAudio(m.generate_audio ?? false);
   }
 
   async function handlePickFirstFrame() {
@@ -374,12 +441,87 @@ function Dashboard(): JSX.Element {
     setFirstFrameError(null);
   }
 
+  async function handlePickLastFrame() {
+    const result = await window.electronAPI.openFileDialog();
+    if (result.success && result.data) {
+      const filePath = result.data;
+      setLastFramePath(filePath);
+      setLastFrameLoading(true);
+      setLastFrameError(null);
+      setLastFrame(null);
+      
+      const uploadResult = await window.electronAPI.i2vUploadImage(filePath);
+      setLastFrameLoading(false);
+      if (uploadResult.success && uploadResult.data) {
+        setLastFrame(uploadResult.data);
+      } else {
+        setLastFrameError(uploadResult.error ?? t('dashboard.frameUploadFailed'));
+      }
+    }
+  }
+
+  function handleClearLastFrame() {
+    setLastFramePath(null);
+    setLastFrame(null);
+    setLastFrameError(null);
+  }
+
+  async function handlePickRefImage() {
+    const result = await window.electronAPI.openFileDialog();
+    if (result.success && result.data) {
+      const filePath = result.data;
+      setRefImagePath(filePath);
+      setRefImageLoading(true);
+      setRefImageError(null);
+      setRefImage(null);
+      
+      const uploadResult = await window.electronAPI.i2vUploadImage(filePath);
+      setRefImageLoading(false);
+      if (uploadResult.success && uploadResult.data) {
+        setRefImage(uploadResult.data);
+      } else {
+        setRefImageError(uploadResult.error ?? t('dashboard.frameUploadFailed'));
+      }
+    }
+  }
+
+  function handleClearRefImage() {
+    setRefImagePath(null);
+    setRefImage(null);
+    setRefImageError(null);
+  }
+
+  async function handlePickAudioRef() {
+    const result = await window.electronAPI.dialogOpenAudioFile();
+    if (result.success && result.data) {
+      const filePath = result.data;
+      setAudioRefPath(filePath);
+      setAudioRefLoading(true);
+      setAudioRefError(null);
+      setAudioRef(null);
+      
+      const uploadResult = await window.electronAPI.audioUpload(filePath);
+      setAudioRefLoading(false);
+      if (uploadResult.success && uploadResult.data) {
+        setAudioRef(uploadResult.data);
+      } else {
+        setAudioRefError(uploadResult.error ?? t('dashboard.audioUploadFailed'));
+      }
+    }
+  }
+
+  function handleClearAudioRef() {
+    setAudioRefPath(null);
+    setAudioRef(null);
+    setAudioRefError(null);
+  }
+
   function canGenerate(): boolean {
     if (!isConfigured) return false;
     if (!selectedModelId) return false;
     if (!prompt.trim() || prompt.trim().length < 3) return false;
     if ((activeTab === 'image-to-video' || activeTab === 'image-to-image') && !firstFrame) return false;
-    if (firstFrameLoading) return false;
+    if (firstFrameLoading || lastFrameLoading || refImageLoading || audioRefLoading) return false;
     if (genState === 'uploading' || genState === 'submitting' || genState === 'polling') return false;
     return true;
   }
@@ -464,6 +606,9 @@ function Dashboard(): JSX.Element {
           model: selectedModelId,
           prompt: prompt.trim(),
           firstFrame: firstFrame!,
+          lastFrame: lastFrame || undefined,
+          refImage: refImage || undefined,
+          audioRef: audioRef || undefined,
           resolution: resolution || undefined,
           aspectRatio: aspectRatio || undefined,
           duration: duration ? Number(duration) : undefined,
@@ -495,6 +640,8 @@ function Dashboard(): JSX.Element {
           duration: duration ? Number(duration) : undefined,
           generate_audio: generateAudio,
           seed: seed ? Number(seed) : undefined,
+          input_references: refImage ? [{ type: 'image_url', image_url: { url: refImage.url } }] : undefined,
+          audio_ref: audioRef ? audioRef.url : undefined,
         });
 
         if (res.success && res.data) {
@@ -850,6 +997,106 @@ function Dashboard(): JSX.Element {
               {firstFrameError && <div className="error-msg" style={{ marginTop: '6px' }}>{firstFrameError}</div>}
             </div>
           )}
+
+          {/* End Frame dropzone upload - only in Image-to-Video if supported */}
+          {supportsEndFrame && (
+            <div className="field">
+              <label>{t('dashboard.endFrameOptional')}</label>
+              {lastFrameLoading ? (
+                <div className="dropzone">
+                  <span className="spinner" />
+                  <div className="dropzone-title">{t('dashboard.loadingImage')}</div>
+                </div>
+              ) : lastFrame ? (
+                <div className="uploaded-frame-card">
+                  <img src={lastFrame.url} className="thumb" alt="" />
+                  <div className="uploaded-frame-info">
+                    <div className="uploaded-frame-title">{t('dashboard.uploadedSuccessfully')}</div>
+                    <div className="uploaded-frame-name">{lastFrame.originalFileName}</div>
+                  </div>
+                  <button className="btn-secondary" onClick={handleClearLastFrame} style={{ padding: '4px 10px', fontSize: '11px' }}>
+                    {t('dashboard.delete')}
+                  </button>
+                </div>
+              ) : (
+                <div className="dropzone" onClick={handlePickLastFrame}>
+                  <img src={uploadIcon} className="dropzone-icon" alt="" />
+                  <div className="dropzone-title">
+                    {t('dashboard.uploadEndFrame')}
+                  </div>
+                  <div className="dropzone-sub">PNG, JPG до 10MB</div>
+                </div>
+              )}
+              {lastFrameError && <div className="error-msg" style={{ marginTop: '6px' }}>{lastFrameError}</div>}
+            </div>
+          )}
+
+          {/* Reference Image dropzone upload - if supported */}
+          {supportsRefImage && (
+            <div className="field">
+              <label>{t('dashboard.refImageOptional')}</label>
+              {refImageLoading ? (
+                <div className="dropzone">
+                  <span className="spinner" />
+                  <div className="dropzone-title">{t('dashboard.loadingImage')}</div>
+                </div>
+              ) : refImage ? (
+                <div className="uploaded-frame-card">
+                  <img src={refImage.url} className="thumb" alt="" />
+                  <div className="uploaded-frame-info">
+                    <div className="uploaded-frame-title">{t('dashboard.uploadedSuccessfully')}</div>
+                    <div className="uploaded-frame-name">{refImage.originalFileName}</div>
+                  </div>
+                  <button className="btn-secondary" onClick={handleClearRefImage} style={{ padding: '4px 10px', fontSize: '11px' }}>
+                    {t('dashboard.delete')}
+                  </button>
+                </div>
+              ) : (
+                <div className="dropzone" onClick={handlePickRefImage}>
+                  <img src={uploadIcon} className="dropzone-icon" alt="" />
+                  <div className="dropzone-title">
+                    {t('dashboard.uploadRefImage')}
+                  </div>
+                  <div className="dropzone-sub">PNG, JPG до 10MB</div>
+                </div>
+              )}
+              {refImageError && <div className="error-msg" style={{ marginTop: '6px' }}>{refImageError}</div>}
+            </div>
+          )}
+
+          {/* Reference Audio dropzone upload - if supported */}
+          {supportsAudioRef && (
+            <div className="field">
+              <label>{t('dashboard.audioRefOptional')}</label>
+              {audioRefLoading ? (
+                <div className="dropzone">
+                  <span className="spinner" />
+                  <div className="dropzone-title">{t('dashboard.loadingAudio')}</div>
+                </div>
+              ) : audioRef ? (
+                <div className="uploaded-frame-card">
+                  <div className="uploaded-frame-info" style={{ marginLeft: 0 }}>
+                    <div className="uploaded-frame-title" style={{ color: 'var(--accent)' }}>🎵 {t('dashboard.audioUploadedSuccessfully')}</div>
+                    <div className="uploaded-frame-name" style={{ fontSize: '12px', opacity: 0.95 }}>{audioRef.originalFileName}</div>
+                    <div className="uploaded-frame-size" style={{ fontSize: '11px', opacity: 0.6 }}>{(audioRef.sizeBytes / 1024 / 1024).toFixed(2)} MB</div>
+                  </div>
+                  <button className="btn-secondary" onClick={handleClearAudioRef} style={{ padding: '4px 10px', fontSize: '11px', marginLeft: 'auto' }}>
+                    {t('dashboard.delete')}
+                  </button>
+                </div>
+              ) : (
+                <div className="dropzone" onClick={handlePickAudioRef}>
+                  <img src={uploadIcon} className="dropzone-icon" alt="" />
+                  <div className="dropzone-title">
+                    {t('dashboard.uploadAudioRef')}
+                  </div>
+                  <div className="dropzone-sub">MP3, WAV до 30MB</div>
+                </div>
+              )}
+              {audioRefError && <div className="error-msg" style={{ marginTop: '6px' }}>{audioRefError}</div>}
+            </div>
+          )}
+
 
           {/* Submit Action Button */}
           <button

@@ -1,7 +1,7 @@
 {
   "name": "koteyye-media-studio",
   "productName": "Koteyye media studio",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Desktop AI media generation studio powered by OpenRouter.",
   "author": "Koteyye",
