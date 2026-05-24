@@ -1,13 +1,20 @@
-import { app, BrowserWindow, shell, protocol, net } from 'electron';
+import { app, BrowserWindow, dialog, Notification, shell, protocol, net } from 'electron';
 import { join, extname } from 'path';
 import * as fs from 'fs';
 import { is } from '@electron-toolkit/utils';
+import { autoUpdater } from 'electron-updater';
 
 import { registerIpcHandlers } from './ipc-handlers';
 import { recoverPendingJobs } from './services/pending-jobs-recovery';
 
+const APP_ID = 'ru.koteyye.media-studio';
+const RELEASES_URL = 'https://github.com/koteyye/koteyye-media-studio/releases';
+const LATEST_RELEASE_API_URL = 'https://api.github.com/repos/koteyye/koteyye-media-studio/releases/latest';
+const APP_ICON_RESOURCE = 'icons/openrouter_media_client_windows_ico.ico';
+
 // Включаем аппаратную поддержку воспроизведения H.265/HEVC видео на Windows/macOS
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+app.setAppUserModelId(APP_ID);
 
 // Регистрируем кастомный протокол для проксирования видео (обход CORS/CDN ограничений)
 // ВАЖНО: должен вызываться ДО app.whenReady()
@@ -18,6 +25,126 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+function getAppIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, APP_ICON_RESOURCE)
+    : join(__dirname, '../../src/assets/icons/openrouter_media_client_windows_ico.ico');
+}
+
+function normalizeVersion(version: string): string {
+  return version.trim().replace(/^v/i, '').split('-')[0];
+}
+
+function isVersionGreater(latestVersion: string, currentVersion: string): boolean {
+  const latestParts = normalizeVersion(latestVersion).split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const currentParts = normalizeVersion(currentVersion).split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const maxLength = Math.max(latestParts.length, currentParts.length);
+
+  for (let i = 0; i < maxLength; i += 1) {
+    const latest = latestParts[i] ?? 0;
+    const current = currentParts[i] ?? 0;
+    if (latest > current) return true;
+    if (latest < current) return false;
+  }
+
+  return false;
+}
+
+function showMacUpdateNotification(version: string, releaseUrl: string): void {
+  const title = 'Доступна новая версия Koteyye Media Studio';
+  const body = `Версия ${version} доступна на GitHub Releases. Нажмите, чтобы открыть страницу загрузки.`;
+
+  if (Notification.isSupported()) {
+    const notification = new Notification({ title, body });
+    notification.on('click', () => {
+      shell.openExternal(releaseUrl).catch((err) => {
+        console.error('[updates] Failed to open release URL:', err);
+      });
+    });
+    notification.show();
+    return;
+  }
+
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  dialog.showMessageBox(win, {
+    type: 'info',
+    buttons: ['Открыть релиз', 'Позже'],
+    defaultId: 0,
+    cancelId: 1,
+    title,
+    message: title,
+    detail: body,
+  }).then(({ response }) => {
+    if (response === 0) {
+      shell.openExternal(releaseUrl).catch((err) => {
+        console.error('[updates] Failed to open release URL:', err);
+      });
+    }
+  }).catch((err) => {
+    console.error('[updates] Failed to show macOS update dialog:', err);
+  });
+}
+
+async function checkMacReleaseNotification(): Promise<void> {
+  if (process.platform !== 'darwin' || !app.isPackaged) return;
+
+  try {
+    const response = await net.fetch(LATEST_RELEASE_API_URL, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': `${app.getName()}/${app.getVersion()}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`[updates] GitHub latest release check failed: ${response.status}`);
+      return;
+    }
+
+    const release = await response.json() as { tag_name?: string; html_url?: string; name?: string };
+    const latestVersion = release.tag_name ?? release.name;
+    if (!latestVersion || !isVersionGreater(latestVersion, app.getVersion())) return;
+
+    showMacUpdateNotification(latestVersion, release.html_url ?? RELEASES_URL);
+  } catch (err) {
+    console.error('[updates] macOS release check failed:', err);
+  }
+}
+
+function configureWindowsAutoUpdates(): void {
+  if (process.platform !== 'win32' || !app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updates] Windows auto-update error:', err);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+    dialog.showMessageBox(win, {
+      type: 'info',
+      buttons: ['Установить сейчас', 'Позже'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Обновление готово',
+      message: `Koteyye Media Studio ${info.version} загружена`,
+      detail: 'Приложение перезапустится и установит обновление.',
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    }).catch((err) => {
+      console.error('[updates] Failed to show update dialog:', err);
+    });
+  });
+
+  autoUpdater.checkForUpdates().catch((err) => {
+    console.error('[updates] Failed to check Windows updates:', err);
+  });
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1100,
@@ -27,6 +154,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'Koteyye Media Studio',
+    icon: getAppIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -132,6 +260,10 @@ app.whenReady().then(() => {
 
   registerIpcHandlers();
   createWindow();
+  configureWindowsAutoUpdates();
+  checkMacReleaseNotification().catch((err) => {
+    console.error('[updates] macOS release notification failed:', err);
+  });
 
   // Фоновое восстановление незавершённых задач генерации
   // (не блокирует запуск приложения — выполняется асинхронно)

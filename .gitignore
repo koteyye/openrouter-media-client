@@ -1,5 +1,7 @@
 node_modules/
 out/
+build/
+release/
 dist/
 *.log
 .env

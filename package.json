@@ -1,18 +1,95 @@
 {
   "name": "openrouter-media-client",
+  "productName": "Koteyye Media Studio",
   "version": "0.1.0",
   "private": true,
+  "description": "Desktop AI media generation studio powered by OpenRouter.",
+  "author": "Koteyye",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/koteyye/koteyye-media-studio.git"
+  },
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "prepare:icons": "node scripts/prepare-icons.mjs",
+    "build": "npm run prepare:icons && electron-vite build",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "publish:win": "npm run build && electron-builder --win --publish always",
     "start": "electron-vite preview",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web"
   },
+  "build": {
+    "appId": "ru.koteyye.media-studio",
+    "productName": "Koteyye Media Studio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src/assets/icons/openrouter_media_client_windows_ico.ico",
+        "to": "icons/openrouter_media_client_windows_ico.ico"
+      }
+    ],
+    "icon": "src/assets/icons/openrouter_media_client_windows_ico.ico",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "src/assets/icons/openrouter_media_client_windows_ico.ico",
+      "artifactName": "Koteyye-Media-Studio-${version}-${os}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "artifactName": "Koteyye-Media-Studio-${version}-${os}-${arch}.${ext}",
+      "category": "public.app-category.graphics-design",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "icon": "build/icon.icns",
+      "artifactName": "Koteyye-Media-Studio-${version}-${os}-${arch}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "koteyye",
+        "repo": "koteyye-media-studio",
+        "releaseType": "release"
+      }
+    ]
+  },
   "dependencies": {
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sharp": "^0.34.5",
@@ -26,6 +103,7 @@
     "@types/sharp": "^0.31.1",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.3.1",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^2.3.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
