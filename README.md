@@ -39,26 +39,6 @@ Provide a starting frame, add a prompt, and let AI animate the rest. Perfect for
 - [OpenRouter](https://openrouter.ai) — unified API for hundreds of AI models
 - Built with Electron & React
 
-## Release Builds
-
-Local builds:
-
-```bash
-npm run dist:win
-npm run dist:mac
-```
-
-macOS builds must be produced on macOS. The app is currently unsigned, so macOS users receive a GitHub Releases notification instead of automatic installation.
-
-GitHub release flow:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The release workflow builds Windows and macOS artifacts and uploads everything from `release/` to GitHub Releases. Windows auto-updates use the uploaded `latest.yml`, installer `.exe`, and `.blockmap`.
 
 ---
-
 © 2026 [Koteyye Eco System](https://kotey-ye.ru)
