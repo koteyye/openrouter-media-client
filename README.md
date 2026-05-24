@@ -1,4 +1,8 @@
-# OpenRouter Media Client
+<p align="center">
+  <img src="https://github.com/koteyye/koteyye-media-studio/blob/main/src/assets/icons/openrouter_media_client_logo.png?raw=true" width="128" alt="Koteyye Media Studio" />
+</p>
+
+# Koteyye Media Studio
 
 A sleek desktop application for AI-powered media generation — images and videos — using the [OpenRouter](https://openrouter.ai) platform. No cloud subscriptions, no usage limits beyond your own API credits. Just pick a model, describe what you want, and hit generate.
 
@@ -26,10 +30,8 @@ Provide a starting frame, add a prompt, and let AI animate the rest. Perfect for
 
 ## Screenshots
 
-<!-- Place screenshots here once available -->
-
 <p align="center">
-  <em>Screenshots coming soon</em>
+  <img src="https://github.com/koteyye/koteyye-media-studio/blob/main/src/assets/images/screen_media_studio.png?raw=true" alt="Koteyye Media Studio screenshot" width="800" />
 </p>
 
 ## Powered By
