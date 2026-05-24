@@ -4,7 +4,7 @@ import { LanguageProvider, useT } from './i18n/LanguageContext';
 import Dashboard from './components/Dashboard';
 import SettingsScreen from './components/SettingsScreen';
 
-import logoIcon from '../../assets/icons/openrouter_media_client_logo.png';
+import logoIcon from '../../assets/icons/koteyye_media_studio_logo.png';
 import settingsIcon from '../../assets/icons/global_settings.png';
 import refreshIcon from '../../assets/icons/refrash.png';
 import rusIcon from '../../assets/icons/rus.png';
@@ -81,7 +81,7 @@ function AppInner(): JSX.Element {
       <header className="app-header">
         <h1>
           <img src={logoIcon} className="logo-icon" alt="Logo" />
-          Koteyye <span className="header-title-accent">Media Studio</span>
+          Koteyye <span className="header-title-accent">media studio</span>
         </h1>
         <div className="header-actions">
           {apiKey && (

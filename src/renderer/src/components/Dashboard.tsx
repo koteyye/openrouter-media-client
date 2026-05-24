@@ -18,7 +18,7 @@ import dimIcon from '../../../assets/icons/param_dimensions.png';
 import clockIcon from '../../../assets/icons/param_duration.png';
 import audioIcon from '../../../assets/icons/param_audio.png';
 import seedIcon from '../../../assets/icons/param_seed.png';
-import catBigLogo from '../../../assets/icons/openrouter_media_client_logo.png';
+import catBigLogo from '../../../assets/icons/koteyye_media_studio_logo.png';
 import folderIcon from '../../../assets/icons/folder.png';
 import previewUnavailableIcon from '../../../assets/icons/preview_unavailable.png';
 import historyEmptyIcon from '../../../assets/icons/history.png';

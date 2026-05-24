@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 
-const sourceIcon = path.resolve('src/assets/icons/openrouter_media_client_windows_ico.ico');
+const sourceIcon = path.resolve('src/assets/icons/koteyye_media_studio.ico');
 const outputDir = path.resolve('build');
 const outputPng = path.join(outputDir, 'icon.png');
 const outputIcns = path.join(outputDir, 'icon.icns');

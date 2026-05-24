@@ -1,6 +1,6 @@
 {
-  "name": "openrouter-media-client",
-  "productName": "Koteyye Media Studio",
+  "name": "koteyye-media-studio",
+  "productName": "Koteyye media studio",
   "version": "0.1.0",
   "private": true,
   "description": "Desktop AI media generation studio powered by OpenRouter.",
@@ -25,7 +25,7 @@
   },
   "build": {
     "appId": "ru.koteyye.media-studio",
-    "productName": "Koteyye Media Studio",
+    "productName": "Koteyye media studio",
     "directories": {
       "output": "release"
     },
@@ -35,11 +35,11 @@
     ],
     "extraResources": [
       {
-        "from": "src/assets/icons/openrouter_media_client_windows_ico.ico",
-        "to": "icons/openrouter_media_client_windows_ico.ico"
+        "from": "src/assets/icons/koteyye_media_studio.ico",
+        "to": "icons/koteyye_media_studio.ico"
       }
     ],
-    "icon": "src/assets/icons/openrouter_media_client_windows_ico.ico",
+    "icon": "src/assets/icons/koteyye_media_studio.ico",
     "win": {
       "target": [
         {
@@ -49,8 +49,8 @@
           ]
         }
       ],
-      "icon": "src/assets/icons/openrouter_media_client_windows_ico.ico",
-      "artifactName": "Koteyye-Media-Studio-${version}-${os}-${arch}.${ext}"
+      "icon": "src/assets/icons/koteyye_media_studio.ico",
+      "artifactName": "Koteyye-media-studio-${version}-${os}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -69,14 +69,14 @@
         }
       ],
       "icon": "build/icon.icns",
-      "artifactName": "Koteyye-Media-Studio-${version}-${os}-${arch}.${ext}",
+      "artifactName": "Koteyye-media-studio-${version}-${os}-${arch}.${ext}",
       "category": "public.app-category.graphics-design",
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     },
     "dmg": {
       "icon": "build/icon.icns",
-      "artifactName": "Koteyye-Media-Studio-${version}-${os}-${arch}.${ext}"
+      "artifactName": "Koteyye-media-studio-${version}-${os}-${arch}.${ext}"
     },
     "publish": [
       {

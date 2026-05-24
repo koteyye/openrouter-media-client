@@ -10,7 +10,7 @@ import { recoverPendingJobs } from './services/pending-jobs-recovery';
 const APP_ID = 'ru.koteyye.media-studio';
 const RELEASES_URL = 'https://github.com/koteyye/koteyye-media-studio/releases';
 const LATEST_RELEASE_API_URL = 'https://api.github.com/repos/koteyye/koteyye-media-studio/releases/latest';
-const APP_ICON_RESOURCE = 'icons/openrouter_media_client_windows_ico.ico';
+const APP_ICON_RESOURCE = 'icons/koteyye_media_studio.ico';
 
 // Включаем аппаратную поддержку воспроизведения H.265/HEVC видео на Windows/macOS
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
@@ -28,7 +28,7 @@ protocol.registerSchemesAsPrivileged([
 function getAppIconPath(): string {
   return app.isPackaged
     ? join(process.resourcesPath, APP_ICON_RESOURCE)
-    : join(__dirname, '../../src/assets/icons/openrouter_media_client_windows_ico.ico');
+    : join(__dirname, '../../src/assets/icons/koteyye_media_studio.ico');
 }
 
 function normalizeVersion(version: string): string {
@@ -51,7 +51,7 @@ function isVersionGreater(latestVersion: string, currentVersion: string): boolea
 }
 
 function showMacUpdateNotification(version: string, releaseUrl: string): void {
-  const title = 'Доступна новая версия Koteyye Media Studio';
+  const title = 'Доступна новая версия Koteyye media studio';
   const body = `Версия ${version} доступна на GitHub Releases. Нажмите, чтобы открыть страницу загрузки.`;
 
   if (Notification.isSupported()) {
@@ -129,7 +129,7 @@ function configureWindowsAutoUpdates(): void {
       defaultId: 0,
       cancelId: 1,
       title: 'Обновление готово',
-      message: `Koteyye Media Studio ${info.version} загружена`,
+      message: `Koteyye media studio ${info.version} загружена`,
       detail: 'Приложение перезапустится и установит обновление.',
     }).then(({ response }) => {
       if (response === 0) {
@@ -153,7 +153,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    title: 'Koteyye Media Studio',
+    title: 'Koteyye media studio',
     icon: getAppIconPath(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
