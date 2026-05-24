@@ -1,6 +1,9 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron';
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import Store from 'electron-store';
 import { z } from 'zod';
+import * as fs from 'fs';
+import * as path from 'path';
+
 import {
   fetchImageModels,
   fetchVideoModels,
@@ -8,12 +11,13 @@ import {
   generateImage,
   pollVideoStatus,
   downloadVideoContent,
+  fetchCredits,
 } from './openrouter';
 import { uploadFrameImage } from './services/i2v-uploader';
 import * as historyStore from './services/history-store';
 import type { AppConfig, IpcResult, MediaType, OpenRouterFrameImage, GenerationHistoryItem } from '../shared/ipc-types';
 
-const configStore = new Store<AppConfig>({
+export const configStore = new Store<AppConfig>({
   defaults: {
     apiKey: '',
     generationMode: '',
@@ -21,8 +25,15 @@ const configStore = new Store<AppConfig>({
     selectedModel: '',
     i2vSelectedModel: '',
     imgbbApiKey: '',
+    localFolder: '',
+    selectedModelT2I: '',
+    selectedModelI2I: '',
+    selectedModelI2V: '',
+    selectedModelT2V: '',
+    lang: 'ru',
   },
 });
+
 
 function requireApiKey(): string {
   const key = configStore.get('apiKey');
@@ -49,9 +60,37 @@ async function wrapAsync<T>(fn: () => Promise<T>): Promise<IpcResult<T>> {
   }
 }
 
+async function downloadImageContent(url: string, outputPath: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Image download failed: ${res.status}`);
+  const buffer = await res.arrayBuffer();
+  fs.writeFileSync(outputPath, Buffer.from(buffer));
+  return outputPath;
+}
+
+
 const promptSchema = z.string().min(3);
 const jobIdSchema = z.string().min(1);
 const urlSchema = z.string().startsWith('https://');
+const localFilePathSchema = z.string().min(1);
+
+function resolveSavedFilePath(filePath: string): string {
+  const safePath = path.resolve(localFilePathSchema.parse(filePath));
+  const localFolder = configStore.get('localFolder');
+  if (!localFolder) throw new Error('Папка сохранения не настроена');
+
+  const safeLocalFolder = path.resolve(localFolder);
+  const relativePath = path.relative(safeLocalFolder, safePath);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    throw new Error('Файл находится вне папки сохранения');
+  }
+
+  if (!fs.existsSync(safePath) || !fs.statSync(safePath).isFile()) {
+    throw new Error('Файл не найден');
+  }
+
+  return safePath;
+}
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('config:get', () => wrap(() => ({
@@ -61,14 +100,21 @@ export function registerIpcHandlers(): void {
     selectedModel: configStore.get('selectedModel'),
     i2vSelectedModel: configStore.get('i2vSelectedModel'),
     imgbbApiKey: configStore.get('imgbbApiKey'),
+    localFolder: configStore.get('localFolder') ?? '',
+    selectedModelT2I: configStore.get('selectedModelT2I') ?? '',
+    selectedModelI2I: configStore.get('selectedModelI2I') ?? '',
+    selectedModelI2V: configStore.get('selectedModelI2V') ?? '',
+    selectedModelT2V: configStore.get('selectedModelT2V') ?? '',
+    lang: configStore.get('lang') ?? 'ru',
   })));
 
   ipcMain.handle('config:set', (_e, partial: Partial<AppConfig>) => wrap(() => {
-    const keys: (keyof AppConfig)[] = ['apiKey', 'generationMode', 'mediaType', 'selectedModel', 'i2vSelectedModel', 'imgbbApiKey'];
+    const keys: (keyof AppConfig)[] = ['apiKey', 'generationMode', 'mediaType', 'selectedModel', 'i2vSelectedModel', 'imgbbApiKey', 'localFolder', 'selectedModelT2I', 'selectedModelI2I', 'selectedModelI2V', 'selectedModelT2V', 'lang'];
     for (const k of keys) {
       if (partial[k] !== undefined) configStore.set(k, partial[k] as never);
     }
   }));
+
 
   ipcMain.handle('models:fetch', async (_e, mediaType: MediaType) => wrapAsync(async () => {
     const apiKey = requireApiKey();
@@ -104,19 +150,36 @@ export function registerIpcHandlers(): void {
     urlSchema.parse(pollingUrl);
     const status = await pollVideoStatus(apiKey, pollingUrl);
     const jobId = pollingUrl.split('/').pop() ?? '';
+
+    let localPaths: string[] = [];
+    if (status.status === 'completed' && status.unsigned_urls?.length) {
+      const localFolder = configStore.get('localFolder');
+      if (localFolder && fs.existsSync(localFolder)) {
+        try {
+          const outputPath = path.join(localFolder, `video-${jobId}.mp4`);
+          await downloadVideoContent(apiKey, jobId, outputPath);
+          localPaths.push(outputPath);
+        } catch (err) {
+          console.error("Auto-download video failed:", err);
+        }
+      }
+    }
+
     if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled' || status.status === 'expired') {
       historyStore.updateByJobId(jobId, {
         status: status.status,
         generationId: status.generation_id,
         error: status.error,
         remoteUrls: status.unsigned_urls ?? [],
+        localPaths: localPaths.length ? localPaths : undefined,
         usage: status.usage,
       });
     } else {
       historyStore.updateByJobId(jobId, { status: status.status });
     }
-    return status;
+    return { ...status, localPaths: localPaths.length ? localPaths : undefined };
   }));
+
 
   ipcMain.handle('video:download', async (_e, jobId: string, outputPath: string) => wrapAsync(async () => {
     const apiKey = requireApiKey();
@@ -126,24 +189,40 @@ export function registerIpcHandlers(): void {
     return path;
   }));
 
-  // ---- Text-to-Image ----
-  ipcMain.handle('image:generate', async (_e, prompt: string) => wrapAsync(async () => {
+  // ---- Text-to-Image / Image-to-Image ----
+  ipcMain.handle('image:generate', async (_e, prompt: string, imageUrl?: string, options?: import('../shared/ipc-types').ImageGenerateOptions) => wrapAsync(async () => {
     const apiKey = requireApiKey();
     const model = configStore.get('selectedModel');
     if (!model) throw new Error('No model selected');
     const safePrompt = promptSchema.parse(prompt);
-    const result = await generateImage(apiKey, model, safePrompt);
+
+    const result = await generateImage(apiKey, model, safePrompt, imageUrl, options);
+
+    const localFolder = configStore.get('localFolder');
+    const localPaths: string[] = [];
+    if (localFolder && fs.existsSync(localFolder) && result.urls?.length) {
+      try {
+        const filename = `image-${Date.now()}.png`;
+        const outputPath = path.join(localFolder, filename);
+        await downloadImageContent(result.urls[0], outputPath);
+        localPaths.push(outputPath);
+      } catch (err) {
+        console.error("Auto-download image failed:", err);
+      }
+    }
+
     historyStore.create({
-      mode: 'text-to-image',
+      mode: imageUrl ? 'image-to-image' : 'text-to-image',
       model,
       prompt: safePrompt,
       status: 'completed',
       remoteUrls: result.urls,
-      localPaths: [],
+      localPaths,
       usage: result.usage,
     });
-    return result;
+    return { ...result, localPaths };
   }));
+
 
   // ---- Image-to-Video ----
   ipcMain.handle('i2v:get-models', async () => wrapAsync(async () => {
@@ -232,19 +311,35 @@ export function registerIpcHandlers(): void {
       return await res.json();
     })();
 
+    let localPaths: string[] = [];
+    if (status.status === 'completed' && status.unsigned_urls?.length) {
+      const localFolder = configStore.get('localFolder');
+      if (localFolder && fs.existsSync(localFolder)) {
+        try {
+          const outputPath = path.join(localFolder, `video-${jobId}.mp4`);
+          await downloadVideoContent(apiKey, jobId, outputPath);
+          localPaths.push(outputPath);
+        } catch (err) {
+          console.error("Auto-download video failed:", err);
+        }
+      }
+    }
+
     if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled' || status.status === 'expired') {
       historyStore.updateByJobId(jobId, {
         status: status.status,
         generationId: status.generation_id,
         error: status.error,
         remoteUrls: status.unsigned_urls ?? [],
+        localPaths: localPaths.length ? localPaths : undefined,
         usage: status.usage,
       });
     } else {
       historyStore.updateByJobId(jobId, { status: status.status });
     }
-    return status;
+    return { ...status, localPaths: localPaths.length ? localPaths : undefined };
   }));
+
 
   ipcMain.handle('i2v:download', async (_e, jobId: string, outputPath: string) => wrapAsync(async () => {
     const apiKey = requireApiKey();
@@ -254,9 +349,19 @@ export function registerIpcHandlers(): void {
     return path;
   }));
 
+  // ---- Credits / Balance ----
+  ipcMain.handle('credits:fetch', async () => wrapAsync(async () => {
+    const apiKey = requireApiKey();
+    return await fetchCredits(apiKey);
+  }));
+
   // ---- Unified History ----
   ipcMain.handle('history:list', () => wrap(() => historyStore.listHistory()));
   ipcMain.handle('history:delete', (_e, id: string) => wrap(() => historyStore.deleteFromHistory(id)));
+  ipcMain.handle('history:recover-pending', async () => wrapAsync(async () => {
+    const { recoverPendingJobs } = await import('./services/pending-jobs-recovery');
+    await recoverPendingJobs();
+  }));
 
   // ---- File dialogs ----
   ipcMain.handle('dialog:open-file', async () => {
@@ -278,4 +383,36 @@ export function registerIpcHandlers(): void {
     });
     return { success: true, data: result.canceled ? null : result.filePath };
   });
+
+  ipcMain.handle('dialog:open-directory', async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return { success: true, data: null };
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory'],
+    });
+    return { success: true, data: result.canceled ? null : result.filePaths[0] };
+  });
+
+  ipcMain.handle('file:open', async (_e, filePath: string) => wrapAsync(async () => {
+    const safePath = resolveSavedFilePath(filePath);
+
+    const errorMessage = await shell.openPath(safePath);
+    if (errorMessage) throw new Error(errorMessage);
+  }));
+
+  ipcMain.handle('file:show-in-folder', (_e, filePath: string) => wrap(() => {
+    const safePath = resolveSavedFilePath(filePath);
+
+    shell.showItemInFolder(safePath);
+  }));
+
+  ipcMain.handle('config:test-connection', async (_e, apiKey: string) => wrapAsync(async () => {
+    const res = await fetch('https://openrouter.ai/api/v1/models', {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) {
+      throw new Error(`Invalid API Key or connection error: ${res.status}`);
+    }
+    return true;
+  }));
 }

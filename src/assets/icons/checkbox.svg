@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 70" width="240" height="70">
+  <defs>
+    <filter id="orange-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    .checkbox-wrapper {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Мягкая подложка/рамка (выключено) */
+    .box-bg {
+      fill: #19110B;
+      stroke: #3D2516;
+      stroke-width: 2.5;
+      rx: 10px; /* Красивые скругленные углы */
+      transition: stroke 0.2s ease, filter 0.2s ease;
+    }
+
+    /* Галочка */
+    .checkmark {
+      fill: none;
+      stroke: #D96B27;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
+      transition: stroke-dashoffset 0.25s ease-out;
+    }
+
+    /* Текст */
+    .label-text {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      fill: #A69083;
+      transition: fill 0.2s ease;
+    }
+
+    /* Ховер-эффект на рамку */
+    .checkbox-wrapper:hover .box-bg {
+      stroke: #54341F;
+    }
+
+    /* АКТИВНОЕ СОСТОЯНИЕ (Добавляется класс .active) */
+    .checkbox-wrapper.active .box-bg {
+      stroke: #D96B27;
+      filter: url(#orange-glow); /* Чистый шайн без швов */
+    }
+    
+    .checkbox-wrapper.active .checkmark {
+      stroke-dashoffset: 0;
+    }
+
+    .checkbox-wrapper.active .label-text {
+      fill: #E6DCD5;
+    }
+  </style>
+
+  <g class="checkbox-wrapper active" onclick="this.classList.toggle('active')">
+    
+    <rect class="box-bg" x="15" y="17" width="36" height="36" />
+    
+    <path class="checkmark" d="M23 35 L31 42 L43 27" />
+
+    <text class="label-text" x="65" y="40">Включить опцию</text>
+  </g>
+</svg>

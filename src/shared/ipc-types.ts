@@ -17,10 +17,16 @@ export interface OpenRouterModel {
     instruct_type: string | null;
   };
   pricing?: {
-    prompt: string;
-    completion: string;
-    request: string;
-    image: string;
+    prompt?: string;
+    completion?: string;
+    request?: string;
+    image?: string;
+    audio?: string;
+    web_search?: string;
+    input_cache_read?: string;
+    input_cache_write?: string;
+    internal_reasoning?: string;
+    [key: string]: string | undefined;
   };
   context_length?: number;
   supported_resolutions?: string[];
@@ -67,6 +73,13 @@ export interface VideoJobStatus {
   };
 }
 
+export interface ImageGenerateOptions {
+  resolution?: string;
+  aspectRatio?: string;
+  seed?: number;
+  outputModalities?: string[];
+}
+
 export interface ImageGenerationResult {
   urls: string[];
   model: string;
@@ -83,11 +96,19 @@ export type AppConfig = {
   selectedModel: string;
   i2vSelectedModel: string;
   imgbbApiKey?: string;
+  localFolder: string;
+  // Per-tab model selections
+  selectedModelT2I: string;
+  selectedModelI2I: string;
+  selectedModelI2V: string;
+  selectedModelT2V: string;
+  lang?: 'ru' | 'en';
 };
+
 
 // ---- Unified Generation History ----
 
-export type GenMode = 'text-to-video' | 'text-to-image' | 'image-to-video';
+export type GenMode = 'text-to-video' | 'text-to-image' | 'image-to-video' | 'image-to-image';
 
 export interface GenerationHistoryItem {
   id: string;
@@ -134,20 +155,30 @@ export interface I2VGenerateInput {
   seed?: number;
 }
 
+export interface OpenRouterCredits {
+  total_credits: number;
+  total_usage: number;
+}
+
 export type IpcChannelMap = {
   'config:get': { args: []; return: IpcResult<AppConfig> };
   'config:set': { args: [config: Partial<AppConfig>]; return: IpcResult<void> };
   'models:fetch': { args: [mediaType: MediaType]; return: IpcResult<OpenRouterModel[]> };
   'video:generate': { args: [params: VideoGenerateParams]; return: IpcResult<VideoJobResult> };
   'video:poll': { args: [pollingUrl: string]; return: IpcResult<VideoJobStatus> };
-  'image:generate': { args: [prompt: string]; return: IpcResult<ImageGenerationResult> };
+  'image:generate': { args: [prompt: string, imageUrl?: string, options?: ImageGenerateOptions]; return: IpcResult<ImageGenerationResult> };
   'i2v:get-models': { args: []; return: IpcResult<OpenRouterModel[]> };
   'i2v:generate': { args: [input: I2VGenerateInput]; return: IpcResult<VideoJobResult> };
   'i2v:poll': { args: [jobId: string]; return: IpcResult<VideoJobStatus> };
   'i2v:download': { args: [jobId: string, outputPath: string]; return: IpcResult<string> };
   'video:download': { args: [jobId: string, outputPath: string]; return: IpcResult<string> };
+  'credits:fetch': { args: []; return: IpcResult<OpenRouterCredits> };
   'history:list': { args: []; return: IpcResult<GenerationHistoryItem[]> };
   'history:delete': { args: [id: string]; return: IpcResult<void> };
   'dialog:open-file': { args: []; return: IpcResult<string | null> };
   'dialog:save-file': { args: [defaultName: string]; return: IpcResult<string | null> };
+  'dialog:open-directory': { args: []; return: IpcResult<string | null> };
+  'file:open': { args: [filePath: string]; return: IpcResult<void> };
+  'file:show-in-folder': { args: [filePath: string]; return: IpcResult<void> };
+  'config:test-connection': { args: [apiKey: string]; return: IpcResult<boolean> };
 };

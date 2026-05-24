@@ -58,19 +58,42 @@ export async function generateVideo(
 export async function generateImage(
   apiKey: string,
   model: string,
-  prompt: string
+  prompt: string,
+  imageUrl?: string,
+  options?: import('../shared/ipc-types').ImageGenerateOptions
 ): Promise<ImageGenerationResult> {
+  const content = imageUrl
+    ? [
+        { type: 'text', text: prompt },
+        { type: 'image_url', image_url: { url: imageUrl } }
+      ]
+    : prompt;
+
+  // Определяем модальности: если модель поддерживает только image (например, Flux, Recraft)
+  // то отправляем ['image'], иначе ['image', 'text']
+  const outputModalities = options?.outputModalities ?? ['image', 'text'];
+
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: 'user', content }],
+    modalities: outputModalities,
+  };
+
+  if (options?.resolution || options?.aspectRatio || options?.seed !== undefined) {
+    const imageConfig: Record<string, unknown> = {};
+    if (options.resolution) imageConfig.image_size = options.resolution;
+    if (options.aspectRatio) imageConfig.aspect_ratio = options.aspectRatio;
+    if (options.seed !== undefined) imageConfig.seed = options.seed;
+    body.image_config = imageConfig;
+  }
+
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      modalities: ['image', 'text'],
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -79,11 +102,21 @@ export async function generateImage(
   const json = await res.json();
 
   const urls: string[] = [];
-  const content = json.choices?.[0]?.message?.content;
-  if (Array.isArray(content)) {
-    for (const part of content) {
-      if (part.type === 'image_url' && part.image_url?.url) {
-        urls.push(part.image_url.url);
+  const message = json.choices?.[0]?.message;
+  if (message) {
+    // Новый формат: message.images
+    if (Array.isArray(message.images)) {
+      for (const img of message.images) {
+        const url = img?.image_url?.url || img?.imageUrl?.url;
+        if (url) urls.push(url);
+      }
+    }
+    // Резервный формат: message.content как массив с image_url
+    if (urls.length === 0 && Array.isArray(message.content)) {
+      for (const part of message.content) {
+        if (part.type === 'image_url' && part.image_url?.url) {
+          urls.push(part.image_url.url);
+        }
       }
     }
   }
@@ -92,6 +125,22 @@ export async function generateImage(
     urls,
     model: json.model ?? model,
     usage: json.usage,
+  };
+}
+
+export async function fetchCredits(apiKey: string): Promise<{ total_credits: number; total_usage: number }> {
+  const res = await fetch(`${BASE_URL}/credits`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to fetch credits: ${res.status} - ${body}`);
+  }
+  const json = await res.json();
+  const data = json.data ?? {};
+  return {
+    total_credits: data.total_credits ?? 0,
+    total_usage: data.total_usage ?? 0,
   };
 }
 
