@@ -709,7 +709,7 @@ function Dashboard(): JSX.Element {
   function handleOpenHistoryItem(item: GenerationHistoryItem) {
     setActiveResultUrls(item.remoteUrls ?? []);
     setActiveLocalPaths(item.localPaths ?? []);
-    setActiveMediaType(item.mode.includes('image') ? 'image' : 'video');
+    setActiveMediaType(item.mode.includes('video') ? 'video' : 'image');
     setGenState('completed');
     setShowHistoryModal(false);
   }
