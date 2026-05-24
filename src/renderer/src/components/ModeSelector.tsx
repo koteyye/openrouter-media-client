@@ -1,47 +1,50 @@
 import { useAppStore } from '../store';
-import type { MediaType } from '../../../shared/ipc-types';
 
-function MediaTypeSelector(): JSX.Element {
-  const { mediaType, setMediaType, setStep } = useAppStore();
+function ModeSelector(): JSX.Element {
+  const { setGenerationMode, setStep } = useAppStore();
 
-  function handleSelect(type: MediaType) {
-    setMediaType(type);
-    setStep('model');
+  function handleSelect(mode: 'text' | 'i2v') {
+    setGenerationMode(mode);
+    if (mode === 'i2v') {
+      setStep('generate');
+    } else {
+      setStep('mediatype');
+    }
   }
 
   function handleBack() {
-    setStep('mode');
+    setStep('config');
   }
 
   return (
     <div className="config-screen">
-      <h2>What do you want to generate?</h2>
+      <h2>What do you want to do?</h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-        Choose the type of media you want to create.
+        Choose the generation mode.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <div
           className="model-card"
           style={{ flexDirection: 'column', alignItems: 'center', padding: '24px 16px', textAlign: 'center' }}
-          onClick={() => handleSelect('video')}
+          onClick={() => handleSelect('text')}
         >
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎬</div>
-          <div className="model-name" style={{ fontSize: '16px' }}>Video</div>
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>📝</div>
+          <div className="model-name" style={{ fontSize: '16px' }}>Text-to-Media</div>
           <div className="model-desc" style={{ fontSize: '13px' }}>
-            Generate videos from text prompts (async polling)
+            Generate video or images from a text prompt
           </div>
         </div>
 
         <div
           className="model-card"
           style={{ flexDirection: 'column', alignItems: 'center', padding: '24px 16px', textAlign: 'center' }}
-          onClick={() => handleSelect('image')}
+          onClick={() => handleSelect('i2v')}
         >
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🖼️</div>
-          <div className="model-name" style={{ fontSize: '16px' }}>Image</div>
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🖼️→🎬</div>
+          <div className="model-name" style={{ fontSize: '16px' }}>Image-to-Video</div>
           <div className="model-desc" style={{ fontSize: '13px' }}>
-            Generate images from text prompts
+            Generate video from an image + text prompt
           </div>
         </div>
       </div>
@@ -53,4 +56,4 @@ function MediaTypeSelector(): JSX.Element {
   );
 }
 
-export default MediaTypeSelector;
+export default ModeSelector;
