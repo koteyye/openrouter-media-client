@@ -319,7 +319,6 @@ export function registerIpcHandlers(): void {
     if (input.duration !== undefined && input.duration > 0) body.duration = input.duration;
     if (input.generateAudio !== undefined) {
       body.generate_audio = input.generateAudio;
-      body.audio = input.generateAudio;
     }
     if (input.seed !== undefined) body.seed = input.seed;
 

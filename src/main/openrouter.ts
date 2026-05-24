@@ -39,7 +39,6 @@ export async function generateVideo(
   if (params.seed !== undefined) body.seed = params.seed;
   if (params.generate_audio !== undefined) {
     body.generate_audio = params.generate_audio;
-    body.audio = params.generate_audio;
   }
   if (params.frame_images) body.frame_images = params.frame_images;
   if (params.input_references) body.input_references = params.input_references;
