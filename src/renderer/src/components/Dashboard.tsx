@@ -1328,6 +1328,25 @@ function Dashboard(): JSX.Element {
         </div>
       </div>
 
+      {/* Подвал приложения */}
+      <footer style={{
+        padding: '10px 24px',
+        textAlign: 'center',
+        fontSize: '11px',
+        color: 'var(--text-secondary)',
+        opacity: 0.5,
+        borderTop: '1px solid rgba(255, 255, 255, 0.03)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '6px',
+        letterSpacing: '0.5px',
+        marginTop: 'auto',
+        background: 'rgba(0, 0, 0, 0.1)'
+      }}>
+        <span>Koteyye Media Studio v1.0.2</span>
+      </footer>
+
       {/* Unified Full History Modal Popup */}
       {showHistoryModal && (
         <div className="history-modal-overlay" onClick={() => setShowHistoryModal(false)}>
