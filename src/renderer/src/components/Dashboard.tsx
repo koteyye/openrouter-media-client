@@ -230,6 +230,10 @@ function Dashboard(): JSX.Element {
     );
   }, [selectedModelData, isVideoMode]);
 
+  const supportsAudio = useMemo(() => {
+    return isVideoMode && selectedModelData?.generate_audio === true;
+  }, [selectedModelData, isVideoMode]);
+
   const isImageTab = activeTab === 'text-to-image' || activeTab === 'image-to-image';
 
   const resolutions = useMemo(() => {
@@ -612,7 +616,7 @@ function Dashboard(): JSX.Element {
           resolution: resolution || undefined,
           aspectRatio: aspectRatio || undefined,
           duration: duration ? Number(duration) : undefined,
-          generateAudio,
+          generateAudio: supportsAudio ? generateAudio : undefined,
           seed: seed ? Number(seed) : undefined,
         } as any);
 
@@ -638,7 +642,7 @@ function Dashboard(): JSX.Element {
           resolution: resolution || undefined,
           aspect_ratio: aspectRatio || undefined,
           duration: duration ? Number(duration) : undefined,
-          generate_audio: generateAudio,
+          generate_audio: supportsAudio ? generateAudio : undefined,
           seed: seed ? Number(seed) : undefined,
           input_references: refImage ? [{ type: 'image_url', image_url: { url: refImage.url } }] : undefined,
           audio_ref: audioRef ? audioRef.url : undefined,
@@ -911,8 +915,8 @@ function Dashboard(): JSX.Element {
               </div>
             )}
 
-            {/* Аудио (только в видео-режимах) */}
-            {isVideoMode && (
+            {/* Аудио (только если модель поддерживает генерацию аудио с возможностью переключения) */}
+            {supportsAudio && (
               <div className="parameter-row">
                 <div className="parameter-label-group">
                   <img src={audioIcon} className="param-img-icon" alt="" />
